@@ -1,3 +1,5 @@
+.SECONDEXPANSION:
+
 GEOM_BASE = sieic4
 GEOM_PATH = $(addprefix geom/,$(GEOM_BASE))
 GEOM_LCDD = $(GEOM_PATH:=/geom.lcdd)
@@ -5,9 +7,10 @@ GEOM_GDML = $(GEOM_PATH:=/geom.gdml)
 GEOM_HEPREP = $(GEOM_PATH:=/geom.heprep)
 GEOM_PANDORA = $(GEOM_PATH:=/geom.pandora)
 GEOM_HTML = $(GEOM_PATH:=/geom.html)
-GEOM = $(GEOM_LCDD) $(GEOM_GDML) $(GEOM_HEPREP) $(GEOM_PANDORA) $(GEOM_HTML)
+LCSIM_CONDITIONS := $(HOME)/.lcsim/cache/http%3A%2F%2Fwww.lcsim.org%2Fdetectors%2F$(GEOM_BASE).zip
+GEOM = $(GEOM_LCDD) $(GEOM_GDML) $(GEOM_HEPREP) $(GEOM_PANDORA) $(GEOM_HTML) $(LCSIM_CONDITIONS)
 
-N_EVENTS = 3
+N_EVENTS = 1
 
 INPUT_BASE = $(basename $(notdir $(wildcard input/*.promc)))
 OUTPUT_TRUTH = $(addprefix output/,$(INPUT_BASE:=_truth.slcio))
@@ -28,20 +31,24 @@ clean:
 
 JAVA_OPTS = -Xms2048m -Xmx2048m
 
-geom/%/geom.lcdd: geom/%/compact.xml
+geom/%/geom.lcdd: geom/%/compact.xml $$(LCSIM_CONDITIONS)
 	java $(JAVA_OPTS) -jar $(GCONVERTER) -o lcdd $< $@
 
 geom/%/geom.gdml: geom/%/geom.lcdd
 	slic -g $< -G $@ > $(@D)/lcdd_gdml_conversion.log
 
-geom/%/geom.heprep: geom/%/compact.xml
+geom/%/geom.heprep: geom/%/compact.xml $$(LCSIM_CONDITIONS)
 	java $(JAVA_OPTS) -jar $(GCONVERTER) -o heprep $< $@
 
-geom/%/geom.pandora: geom/%/compact.xml
+geom/%/geom.pandora: geom/%/compact.xml $$(LCSIM_CONDITIONS)
 	java $(JAVA_OPTS) -jar $(GCONVERTER) -o pandora $< $@
 
-geom/%/geom.html: geom/%/compact.xml
+geom/%/geom.html: geom/%/compact.xml $$(LCSIM_CONDITIONS)
 	java $(JAVA_OPTS) -jar $(GCONVERTER) -o html $< $@
+
+$(LCSIM_CONDITIONS): geom/$(GEOM_BASE)/compact.xml
+	mkdir -p $(@D)
+	cd $(GEOM_PATH) && zip -r $@ * &> $(@D)/$(basename $(@F)).log
 
 #####
 
@@ -53,7 +60,6 @@ output/%_truth.slcio: input/%.promc
 		&> $(@D)/$(basename $(@F)).log
 
 output/%.slcio: output/%_truth.slcio $(GEOM_LCDD) $(GEOM_PATH)/config/defaultILCCrossingAngle.mac
-	
 	time bash -c "time slic -x -i $< \
 	    -g $(GEOM_LCDD) \
 	    -m $(GEOM_PATH)/config/defaultILCCrossingAngle.mac \
@@ -64,7 +70,8 @@ output/%.slcio: output/%_truth.slcio $(GEOM_LCDD) $(GEOM_PATH)/config/defaultILC
 JENV=-Dorg.lcsim.cacheDir=$(HOME) -Duser.home=$(HOME)
 
 output/%_tracking.slcio: output/%.slcio $(GEOM_PATH)/config/$(GEOM_BASE)_trackingStrategies.xml \
-				$(GEOM_PATH)/config/sid_dbd_prePandora_noOverlay.xml
+				$(GEOM_PATH)/config/sid_dbd_prePandora_noOverlay.xml \
+				$$(LCSIM_CONDITIONS)
 	time bash -c "time java $(JAVA_OPTS) $(JENV) \
 		-jar $(CLICSOFT)/distribution/target/lcsim-distribution-*-bin.jar \
 		-DinputFile=$< \
