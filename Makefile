@@ -1,54 +1,61 @@
 .SECONDEXPANSION:
 
-GEOM_BASE = sieic4
-GEOM_PATH = $(addprefix geom/,$(GEOM_BASE))
-GEOM_LCDD = $(GEOM_PATH:=/geom.lcdd)
-GEOM_GDML = $(GEOM_PATH:=/geom.gdml)
-GEOM_HEPREP = $(GEOM_PATH:=/geom.heprep)
-GEOM_PANDORA = $(GEOM_PATH:=/geom.pandora)
-GEOM_HTML = $(GEOM_PATH:=/geom.html)
-LCSIM_CONDITIONS := $(HOME)/.lcsim/cache/http%3A%2F%2Fwww.lcsim.org%2Fdetectors%2F$(GEOM_BASE).zip
-GEOM = $(GEOM_LCDD) $(GEOM_GDML) $(GEOM_HEPREP) $(GEOM_PANDORA) $(GEOM_HTML) $(LCSIM_CONDITIONS)
+GEOM_BASE = sieic5
+GEOM_PATH = geom/$(GEOM_BASE)
+GEOM_LCDD = $(GEOM_PATH)/$(GEOM_BASE).lcdd
+GEOM_HEPREP = $(GEOM_PATH)/$(GEOM_BASE).heprep
+GEOM_GDML = $(GEOM_PATH)/$(GEOM_BASE).gdml
+GEOM_PANDORA = $(GEOM_PATH)/$(GEOM_BASE).pandora
+GEOM_HTML = $(GEOM_PATH)/$(GEOM_BASE).html
+LCSIM_CONDITIONS_PREFIX := http%3A%2F%2Fwww.lcsim.org%2Fdetectors%2F
+LCSIM_CONDITIONS_PREFIX_ESCAPED := http\%3A\%2F\%2Fwww.lcsim.org\%2Fdetectors\%2F
+LCSIM_CONDITIONS := $(HOME)/.lcsim/cache/$(LCSIM_CONDITIONS_PREFIX)$(GEOM_BASE).zip
+GEOM_OVERLAP_CHECK = $(GEOM_PATH)/overlapCheck.log
+GEOM = $(GEOM_LCDD) $(GEOM_GDML) $(GEOM_HEPREP) $(GEOM_PANDORA) $(GEOM_HTML) $(LCSIM_CONDITIONS) \
+	$(GEOM_OVERLAP_CHECK)
 
 N_EVENTS = 1
 
 INPUT_BASE = $(basename $(notdir $(wildcard input/*.promc)))
 OUTPUT_TRUTH = $(addprefix output/,$(INPUT_BASE:=_truth.slcio))
-OUTPUT_SIM = $(addprefix output/,$(INPUT_BASE:=.slcio))
-OUTPUT_TRACKING = $(addprefix output/,$(INPUT_BASE:=_tracking.slcio))
-OUTPUT_PANDORA = $(addprefix output/,$(INPUT_BASE:=_pandora.slcio))
-OUTPUT_HEPSIM = $(addprefix output/,$(INPUT_BASE:=_hepsim.slcio))
+OUTPUT_SIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE).slcio))
+OUTPUT_TRACKING = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_tracking.slcio))
+OUTPUT_PANDORA = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_pandora.slcio))
+OUTPUT_HEPSIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_hepsim.slcio))
 OUTPUT = $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA) $(OUTPUT_HEPSIM)
 
-.PHONY: output geom clean
+.PHONY: all geom clean
 
-output: $(OUTPUT)
+all: $(OUTPUT) $(GEOM)
 
 geom: $(GEOM)
 
 clean:
-	rm -rf $(GEOM) $(OUTPUT)
+	rm -rf output/*
 
 JAVA_OPTS = -Xms2048m -Xmx2048m
 
-geom/%/geom.lcdd: geom/%/compact.xml $$(LCSIM_CONDITIONS)
+$(GEOM_LCDD): $(GEOM_PATH)/compact.xml
 	java $(JAVA_OPTS) -jar $(GCONVERTER) -o lcdd $< $@
 
-geom/%/geom.gdml: geom/%/geom.lcdd
-	slic -g $< -G $@ > $(@D)/lcdd_gdml_conversion.log
+$(GEOM_GDML): $(GEOM_LCDD)
+	slic -g $< -G $@ > $@.log
 
-geom/%/geom.heprep: geom/%/compact.xml $$(LCSIM_CONDITIONS)
+$(GEOM_HEPREP): $(GEOM_PATH)/compact.xml
 	java $(JAVA_OPTS) -jar $(GCONVERTER) -o heprep $< $@
 
-geom/%/geom.pandora: geom/%/compact.xml $$(LCSIM_CONDITIONS)
+$(GEOM_PANDORA): $(GEOM_PATH)/compact.xml $(LCSIM_CONDITIONS)
 	java $(JAVA_OPTS) -jar $(GCONVERTER) -o pandora $< $@
 
-geom/%/geom.html: geom/%/compact.xml $$(LCSIM_CONDITIONS)
+%.html: $(GEOM_PATH)/compact.xml $$(LCSIM_CONDITIONS)
 	java $(JAVA_OPTS) -jar $(GCONVERTER) -o html $< $@
 
-$(LCSIM_CONDITIONS): geom/$(GEOM_BASE)/compact.xml
+$(HOME)/.lcsim/cache/$(LCSIM_CONDITIONS_PREFIX_ESCAPED)%.zip: $(GEOM_HEPREP)
 	mkdir -p $(@D)
-	cd $(GEOM_PATH) && zip -r $@ * &> $(@D)/$(basename $(@F)).log
+	cd geom/$* && zip -r $@ * &> $@.log
+
+$(GEOM_OVERLAP_CHECK): $(GEOM_GDML) macros/overlapCheck.cpp
+	root -b -q -l "macros/overlapCheck.cpp(\"$<\");" | tee $@
 
 #####
 
@@ -57,19 +64,19 @@ PROMC2LCIO_PATH = /usr/local/promc/examples/promc2lcio
 
 output/%_truth.slcio: input/%.promc
 	java $(JAVA_OPTS) promc2lcio $(abspath $<) $(abspath $@) \
-		&> $(@D)/$(basename $(@F)).log
+		&> $@.log
 
-output/%.slcio: output/%_truth.slcio $(GEOM_LCDD) $(GEOM_PATH)/config/defaultILCCrossingAngle.mac
+output/%-$(GEOM_BASE).slcio: output/%_truth.slcio $(GEOM_LCDD) $(GEOM_PATH)/config/defaultILCCrossingAngle.mac
 	time bash -c "time slic -x -i $< \
 	    -g $(GEOM_LCDD) \
 	    -m $(GEOM_PATH)/config/defaultILCCrossingAngle.mac \
 	    -o $@ \
 	    -r $(N_EVENTS)" \
-	    &> $(@D)/$(basename $(@F)).log
+	    &> $@.log
 
 JENV=-Dorg.lcsim.cacheDir=$(HOME) -Duser.home=$(HOME)
 
-output/%_tracking.slcio: output/%.slcio $(GEOM_PATH)/config/$(GEOM_BASE)_trackingStrategies.xml \
+output/%-$(GEOM_BASE)_tracking.slcio: output/%-$(GEOM_BASE).slcio $(GEOM_PATH)/config/$(GEOM_BASE)_trackingStrategies.xml \
 				$(GEOM_PATH)/config/sid_dbd_prePandora_noOverlay.xml \
 				$$(LCSIM_CONDITIONS)
 	time bash -c "time java $(JAVA_OPTS) $(JENV) \
@@ -78,18 +85,18 @@ output/%_tracking.slcio: output/%.slcio $(GEOM_PATH)/config/$(GEOM_BASE)_trackin
 		-DtrackingStrategies=$(GEOM_PATH)/config/$(GEOM_BASE)_trackingStrategies.xml \
 		-DoutputFile=$@ \
 		$(GEOM_PATH)/config/sid_dbd_prePandora_noOverlay.xml" \
-		&> $(@D)/$(basename $(@F)).log
+		&> $@.log
 
-output/%_pandora.slcio: output/%_tracking.slcio $(GEOM_PANDORA) $(GEOM_PATH)/config/PandoraSettings_$(GEOM_BASE).xml
+output/%-$(GEOM_BASE)_pandora.slcio: output/%-$(GEOM_BASE)_tracking.slcio $(GEOM_PANDORA) $(GEOM_PATH)/config/PandoraSettings_$(GEOM_BASE).xml
 	$(slicPandora_DIR)/bin/PandoraFrontend \
 		-g $(GEOM_PANDORA) \
 		-i $< \
 		-c $(GEOM_PATH)/config/PandoraSettings_$(GEOM_BASE).xml \
 		-o $@ \
-		&> $(@D)/$(basename $(@F)).log
+		&> $@.log
 
-output/%_hepsim.slcio: output/%_pandora.slcio output/%_truth.slcio
+output/%-$(GEOM_BASE)_hepsim.slcio: output/%-$(GEOM_BASE)_pandora.slcio output/%_truth.slcio
 	rm -f $@
 	$(FPADSIM)/lcio2hepsim/lcio2hepsim $^ $@ \
-		&> $(@D)/$(basename $(@F)).log
+		&> $@.log
 

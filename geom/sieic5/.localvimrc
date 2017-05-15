@@ -1,0 +1,5 @@
+if filereadable("session.vim")
+	silent source session.vim
+endif
+
+autocmd BufWrite *.* mksession! session.vim

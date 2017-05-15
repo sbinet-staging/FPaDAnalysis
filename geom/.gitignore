@@ -1,1 +1,5 @@
-geom.*
+*.lcdd
+*.html
+*.gdml
+*.pandora
+*.heprep
