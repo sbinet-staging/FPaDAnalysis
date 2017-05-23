@@ -24,10 +24,10 @@ OUTPUT_PANDORA = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_pandora.slcio))
 OUTPUT_HEPSIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_hepsim.slcio))
 
 HEPSIM_BASE = $(patsubst %_hepsim.slcio,%,$(notdir $(wildcard input/*_hepsim.slcio)))
-OUTPUT_ETA_HISTO = $(addprefix output/,$(HEPSIM_BASE:=-eta_histo.root))
+OUTPUT_DIAG = $(addprefix output/,$(HEPSIM_BASE:=-diag.root))
 
 OUTPUT = $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA) $(OUTPUT_HEPSIM) \
-	    $(OUTPUT_ETA_HISTO)
+	    $(OUTPUT_DIAG)
 
 .PHONY: all geom clean
 
@@ -107,6 +107,6 @@ output/%-$(GEOM_BASE)_hepsim.slcio: output/%-$(GEOM_BASE)_pandora.slcio output/%
 
 #####
 
-output/%-eta_histo.root: input/%_hepsim.slcio macros/etaHistos.cpp
-	root -b -q -l "macros/etaHistos.cpp(\"$<\",\"$@\")"
+output/%-diag.root: input/%_hepsim.slcio macros/diagnostics.cpp
+	root -b -q -l "macros/diagnostics.cpp(\"$<\",\"$@\")"
 

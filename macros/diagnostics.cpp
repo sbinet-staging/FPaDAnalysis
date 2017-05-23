@@ -1,4 +1,4 @@
-void etaHistos(const char *inFile, const char *outFile) {
+void diagnostics(const char *inFile, const char *outFile) {
     TFile outputFile(outFile, "recreate");
 
     auto reader = IOIMPL::LCFactory::getInstance()->createLCReader();
@@ -6,6 +6,7 @@ void etaHistos(const char *inFile, const char *outFile) {
 
     TH1I truthElectronEtaHist("truthElectronEtaHist", "Truth Electron, PT > 1; Eta; Count", 100, -5, 5);
     TH1I pfoElectronEtaHist("pfoElectronEtaHist", "PFO Electron, PT > 1; Eta; Count", 100, -5, 5);
+TH2I resPT("resPT","",500,0,50,900,-4,5);
 
     EVENT::LCEvent *event;
     while ((event = reader->readNextEvent()) != 0) {
@@ -16,19 +17,20 @@ void etaHistos(const char *inFile, const char *outFile) {
         for (int i = 0; i < truthColl->getNumberOfElements(); i++) {
             auto element = (EVENT::MCParticle *)truthColl->getElementAt(i);
 
-            if (element->getGeneratorStatus() == 1 && abs(element->getPDG()) == 11) {
+            if (element->getGeneratorStatus() == 1) {
                 auto p = element->getMomentum();
 
-                for (int j = 0; j < 3; j++) truthElectronP[j] += p[j];
+		if (abs(element->getPDG()) == 11)
+			for (int j = 0; j < 3; j++) truthElectronP[j] += p[j];
             }
         }
 
         double pfoElectronP[3] = {0};
         for (int i = 0; i < pfoColl->getNumberOfElements(); i++) {
             auto element = (EVENT::ReconstructedParticle *)pfoColl->getElementAt(i);
+		auto p = element->getMomentum();
 
             if (abs(element->getType()) == 11) {
-                auto p = element->getMomentum();
 
                 for (int j = 0; j < 3; j++) pfoElectronP[j] += p[j];
             }
@@ -50,10 +52,13 @@ void etaHistos(const char *inFile, const char *outFile) {
             truthElectronEtaHist.Fill(truthElectronEta);
             pfoElectronEtaHist.Fill(pfoElectronEta);
         }
+
+	resPT.Fill(truthElectronPT,pfoElectronPT/truthElectronPT);
     }
 
     truthElectronEtaHist.Write();
     pfoElectronEtaHist.Write();
+    resPT.Write();
 
     outputFile.Close();
 }
