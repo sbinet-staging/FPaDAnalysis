@@ -14,7 +14,7 @@ GEOM_OVERLAP_CHECK = $(GEOM_PATH)/overlapCheck.log
 GEOM = $(GEOM_LCDD) $(GEOM_GDML) $(GEOM_HEPREP) $(GEOM_PANDORA) $(GEOM_HTML) $(LCSIM_CONDITIONS) \
 	$(GEOM_OVERLAP_CHECK)
 
-N_EVENTS = 1
+N_EVENTS = 2
 
 INPUT_BASE = $(basename $(notdir $(wildcard input/*.promc)))
 OUTPUT_TRUTH = $(addprefix output/,$(INPUT_BASE:=_truth.slcio))
@@ -22,7 +22,12 @@ OUTPUT_SIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE).slcio))
 OUTPUT_TRACKING = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_tracking.slcio))
 OUTPUT_PANDORA = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_pandora.slcio))
 OUTPUT_HEPSIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_hepsim.slcio))
-OUTPUT = $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA) $(OUTPUT_HEPSIM)
+
+HEPSIM_BASE = $(patsubst %_hepsim.slcio,%,$(notdir $(wildcard input/*_hepsim.slcio)))
+OUTPUT_DIAG = $(addprefix output/,$(HEPSIM_BASE:=-diag.root))
+
+OUTPUT = $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA) $(OUTPUT_HEPSIM) \
+	    $(OUTPUT_DIAG)
 
 .PHONY: all geom clean
 
@@ -99,4 +104,9 @@ output/%-$(GEOM_BASE)_hepsim.slcio: output/%-$(GEOM_BASE)_pandora.slcio output/%
 	rm -f $@
 	$(FPADSIM)/lcio2hepsim/lcio2hepsim $^ $@ \
 		&> $@.log
+
+#####
+
+output/%-diag.root: input/%_hepsim.slcio macros/diagnostics.cpp
+	root -b -q -l "macros/diagnostics.cpp(\"$<\",\"$@\")"
 
