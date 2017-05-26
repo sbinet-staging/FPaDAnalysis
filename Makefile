@@ -7,12 +7,13 @@ GEOM_HEPREP = $(GEOM_PATH)/$(GEOM_BASE).heprep
 GEOM_GDML = $(GEOM_PATH)/$(GEOM_BASE).gdml
 GEOM_PANDORA = $(GEOM_PATH)/$(GEOM_BASE).pandora
 GEOM_HTML = $(GEOM_PATH)/$(GEOM_BASE).html
+GEOM_STRATEGIES = $(GEOM_PATH)/config/$(GEOM_BASE)_trackingStrategies.xml
 LCSIM_CONDITIONS_PREFIX := http%3A%2F%2Fwww.lcsim.org%2Fdetectors%2F
 LCSIM_CONDITIONS_PREFIX_ESCAPED := http\%3A\%2F\%2Fwww.lcsim.org\%2Fdetectors\%2F
 LCSIM_CONDITIONS := $(HOME)/.lcsim/cache/$(LCSIM_CONDITIONS_PREFIX)$(GEOM_BASE).zip
 GEOM_OVERLAP_CHECK = $(GEOM_PATH)/overlapCheck.log
 GEOM = $(GEOM_LCDD) $(GEOM_GDML) $(GEOM_HEPREP) $(GEOM_PANDORA) $(GEOM_HTML) $(LCSIM_CONDITIONS) \
-	$(GEOM_OVERLAP_CHECK)
+	$(GEOM_OVERLAP_CHECK) $(GEOM_STRATEGIES)
 
 N_EVENTS = 1
 
@@ -57,6 +58,18 @@ $(HOME)/.lcsim/cache/$(LCSIM_CONDITIONS_PREFIX_ESCAPED)%.zip: $(GEOM_HEPREP)
 $(GEOM_OVERLAP_CHECK): $(GEOM_GDML) macros/overlapCheck.cpp
 	root -b -q -l "macros/overlapCheck.cpp(\"$<\");" | tee $@
 
+$(GEOM_STRATEGIES): $(GEOM_PATH)/config/trainingSample.slcio $(GEOM_PATH)/compact.xml \
+			$(GEOM_PATH)/config/prototypeStrategy.xml $(GEOM_PATH)/config/layerWeights.xml \
+			$(GEOM_PATH)/config/trainingSample.slcio
+	java $(JAVA_OPTS) $(JENV) \
+		-jar $(CLICSOFT)/distribution/target/lcsim-distribution-*-bin.jar \
+		-DprototypeStrategyFile=$(GEOM_PATH)/config/prototypeStrategy.xml \
+		-DlayerWeightsFile=$(GEOM_PATH)/config/layerWeights.xml \
+		-DtrainingSampleFile=$(GEOM_PATH)/config/trainingSample.slcio \
+		-DoutputStrategyFile=$@ \
+		$(GEOM_PATH)/config/strategyBuilder.xml \
+		&> $@.log
+
 #####
 
 JAVA_OPTS = -Xms2048m -Xmx2048m
@@ -76,13 +89,13 @@ output/%-$(GEOM_BASE).slcio: output/%_truth.slcio $(GEOM_LCDD) $(GEOM_PATH)/conf
 
 JENV=-Dorg.lcsim.cacheDir=$(HOME) -Duser.home=$(HOME)
 
-output/%-$(GEOM_BASE)_tracking.slcio: output/%-$(GEOM_BASE).slcio $(GEOM_PATH)/config/$(GEOM_BASE)_trackingStrategies.xml \
+output/%-$(GEOM_BASE)_tracking.slcio: output/%-$(GEOM_BASE).slcio $(GEOM_STRATEGIES) \
 				$(GEOM_PATH)/config/sid_dbd_prePandora_noOverlay.xml \
 				$$(LCSIM_CONDITIONS)
 	time bash -c "time java $(JAVA_OPTS) $(JENV) \
 		-jar $(CLICSOFT)/distribution/target/lcsim-distribution-*-bin.jar \
 		-DinputFile=$< \
-		-DtrackingStrategies=$(GEOM_PATH)/config/$(GEOM_BASE)_trackingStrategies.xml \
+		-DtrackingStrategies=$(GEOM_STRATEGIES) \
 		-DoutputFile=$@ \
 		$(GEOM_PATH)/config/sid_dbd_prePandora_noOverlay.xml" \
 		&> $@.log
