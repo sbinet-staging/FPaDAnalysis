@@ -15,16 +15,16 @@ GEOM_OVERLAP_CHECK = $(GEOM_PATH)/overlapCheck.log
 GEOM = $(GEOM_LCDD) $(GEOM_GDML) $(GEOM_HEPREP) $(GEOM_PANDORA) $(GEOM_HTML) $(LCSIM_CONDITIONS) \
 	$(GEOM_OVERLAP_CHECK) $(GEOM_STRATEGIES)
 
-N_EVENTS = 2
+N_EVENTS = $(shell cat nEventsPerRun)
 
-INPUT_BASE = $(basename $(notdir $(wildcard input/*.promc)))
+INPUT_BASE = $(patsubst input/%,%,$(basename $(shell find input -iname "*.promc")))
 OUTPUT_TRUTH = $(addprefix output/,$(INPUT_BASE:=_truth.slcio))
 OUTPUT_SIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE).slcio))
 OUTPUT_TRACKING = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_tracking.slcio))
 OUTPUT_PANDORA = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_pandora.slcio))
 OUTPUT_HEPSIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_hepsim.slcio))
 
-HEPSIM_BASE = $(patsubst %_hepsim.slcio,%,$(notdir $(wildcard input/*_hepsim.slcio)))
+HEPSIM_BASE = $(patsubst input/%,%,$(basename $(shell find input -iname "*_hepsim.slcio")))
 OUTPUT_DIAG = $(addprefix output/,$(HEPSIM_BASE:=-diag.root))
 
 OUTPUT = $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA) $(OUTPUT_HEPSIM) \
@@ -79,10 +79,12 @@ $(GEOM_STRATEGIES): $(GEOM_PATH)/config/trainingSample.slcio $(GEOM_PATH)/compac
 #####
 
 output/%_truth.slcio: input/%.promc
+	mkdir -p $(@D)
 	java $(JAVA_OPTS) promc2lcio $(abspath $<) $(abspath $@) \
 		&> $@.log
 
-output/%-$(GEOM_BASE).slcio: output/%_truth.slcio $(GEOM_LCDD) $(GEOM_PATH)/config/defaultILCCrossingAngle.mac
+output/%-$(GEOM_BASE).slcio: output/%_truth.slcio $(GEOM_LCDD) $(GEOM_PATH)/config/defaultILCCrossingAngle.mac \
+				nEventsPerRun
 	time bash -c "time slic -x -i $< \
 	    -g $(GEOM_LCDD) \
 	    -m $(GEOM_PATH)/config/defaultILCCrossingAngle.mac \
