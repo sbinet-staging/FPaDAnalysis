@@ -64,9 +64,8 @@ $(HOME)/.lcsim/cache/$(LCSIM_CONDITIONS_PREFIX_ESCAPED)%.zip: $(GEOM_HEPREP)
 $(GEOM_OVERLAP_CHECK): $(GEOM_GDML) macros/overlapCheck.cpp
 	root -b -q -l "macros/overlapCheck.cpp(\"$<\");" | tee $@
 
-$(GEOM_STRATEGIES): $(GEOM_PATH)/config/trainingSample.slcio $(GEOM_PATH)/compact.xml \
-			$(GEOM_PATH)/config/prototypeStrategy.xml $(GEOM_PATH)/config/layerWeights.xml \
-			$(GEOM_PATH)/config/trainingSample.slcio $$(LCSIM_CONDITIONS)
+$(GEOM_STRATEGIES): $(GEOM_PATH)/compact.xml $(GEOM_PATH)/config/prototypeStrategy.xml \
+			$(GEOM_PATH)/config/layerWeights.xml $$(LCSIM_CONDITIONS)
 	java $(JAVA_OPTS) $(CONDITIONS_OPTS) \
 		-jar $(CLICSOFT)/distribution/target/lcsim-distribution-*-bin.jar \
 		-DprototypeStrategyFile=$(GEOM_PATH)/config/prototypeStrategy.xml \

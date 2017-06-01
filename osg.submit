@@ -1,0 +1,44 @@
+# The UNIVERSE defines an execution environment. You will almost always use VANILLA.
+Universe = vanilla
+
+# These are good base requirements for your jobs on OSG. It is specific on OS and
+# OS version, core cound and memory, and wants to use the software modules. 
+Requirements = HAS_SINGULARITY == TRUE
+request_cpus = 1
+request_memory = 4 GB
+request_disk = 10 GB
+
++SingularityImage = "/cvmfs/singularity.opensciencegrid.org/dbcooper/fpadsim:singularity"
++SingularityBindCVMFS = False
+
+# EXECUTABLE is the program your job will run It's often useful
+# to create a shell script to "wrap" your actual work.
+Executable = osg.sh
+Arguments = $(gendir) $(genfile)
+
+gendir = pgun_elec_eta4_pt30gev
+
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+transfer_input_files = Makefile,geom,macros,nEventsPerRun,rootlogon.C,$(genfile)
+transfer_output_files = output
+
+# ERROR and OUTPUT are the error and output channels from your job
+# that HTCondor returns from the remote host.
+Error = output/job.$(Process).error
+Output = output/job.$(Process).output
+
+# The LOG file is where HTCondor places information about your
+# job's status, success, and resource consumption.
+Log = output/job.log
+
+# Send the job to Held state on failure. 
+#on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)
+
+# Periodically retry the jobs every 1 hour, up to a maximum of 5 retries.
+#periodic_release =  (NumJobStarts < 5) && ((CurrentTime - EnteredCurrentStatus) > 60*60)
+
+# QUEUE is the "start button" - it launches any jobs that have been
+# specified thus far.
+Queue genfile matching files input/$(gendir)/*.promc
+
