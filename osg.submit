@@ -6,7 +6,7 @@ Universe = vanilla
 Requirements = HAS_SINGULARITY == TRUE
 request_cpus = 1
 request_memory = 4 GB
-request_disk = 10 GB
+request_disk = 2 GB
 
 +SingularityImage = "/cvmfs/singularity.opensciencegrid.org/dbcooper/fpadsim:singularity"
 +SingularityBindCVMFS = False

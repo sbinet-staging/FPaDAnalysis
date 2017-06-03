@@ -40,16 +40,16 @@ clean:
 	rm -rf output/*
 
 JAVA_OPTS = -Xms2048m -Xmx2048m
-CONDITIONS_OPTS=-Dorg.lcsim.cacheDir=$(HOME) -Duser.home=$(HOME)
+CONDITIONS_OPTS=-Dorg.lcsim.cacheDir=$(PWD) -Duser.home=$(PWD)
 
 $(GEOM_LCDD): $(GEOM_PATH)/compact.xml
-	java $(JAVA_OPTS) -jar $(GCONVERTER) -o lcdd $< $@
+	java $(JAVA_OPTS) $(CONDITIONS_OPTS) -jar $(GCONVERTER) -o lcdd $< $@
 
 $(GEOM_GDML): $(GEOM_LCDD)
 	slic -g $< -G $@ > $@.log
 
 $(GEOM_HEPREP): $(GEOM_PATH)/compact.xml
-	java $(JAVA_OPTS) -jar $(GCONVERTER) -o heprep $< $@
+	java $(JAVA_OPTS) $(CONDITIONS_OPTS) -jar $(GCONVERTER) -o heprep $< $@
 
 $(GEOM_PANDORA): $(GEOM_PATH)/compact.xml $$(LCSIM_CONDITIONS)
 	java $(JAVA_OPTS) $(CONDITIONS_OPTS) -jar $(GCONVERTER) -o pandora $< $@
@@ -66,14 +66,18 @@ $(GEOM_OVERLAP_CHECK): $(GEOM_GDML) macros/overlapCheck.cpp
 
 $(GEOM_STRATEGIES): $(GEOM_PATH)/compact.xml $(GEOM_PATH)/config/prototypeStrategy.xml \
 			$(GEOM_PATH)/config/layerWeights.xml $$(LCSIM_CONDITIONS)
-	java $(JAVA_OPTS) $(CONDITIONS_OPTS) \
-		-jar $(CLICSOFT)/distribution/target/lcsim-distribution-*-bin.jar \
-		-DprototypeStrategyFile=$(GEOM_PATH)/config/prototypeStrategy.xml \
-		-DlayerWeightsFile=$(GEOM_PATH)/config/layerWeights.xml \
-		-DtrainingSampleFile=$(GEOM_PATH)/config/trainingSample.slcio \
-		-DoutputStrategyFile=$@ \
-		$(GEOM_PATH)/config/strategyBuilder.xml \
-		&> $@.log
+	if [ -f $(GEOM_PATH)/config/trainingSample.slcio ]; \
+		then java $(JAVA_OPTS) $(CONDITIONS_OPTS) \
+			-jar $(CLICSOFT)/distribution/target/lcsim-distribution-*-bin.jar \
+			-DprototypeStrategyFile=$(GEOM_PATH)/config/prototypeStrategy.xml \
+			-DlayerWeightsFile=$(GEOM_PATH)/config/layerWeights.xml \
+			-DtrainingSampleFile=$(GEOM_PATH)/config/trainingSample.slcio \
+			-DoutputStrategyFile=$@ \
+			$(GEOM_PATH)/config/strategyBuilder.xml \
+			&> $@.log; \
+	else \
+		touch $@; \
+	fi
 
 #####
 
