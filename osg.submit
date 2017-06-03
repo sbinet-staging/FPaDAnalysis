@@ -33,10 +33,10 @@ Output = output/job.$(Process).output
 Log = output/job.log
 
 # Send the job to Held state on failure. 
-#on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)
+on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)
 
 # Periodically retry the jobs every 1 hour, up to a maximum of 5 retries.
-#periodic_release =  (NumJobStarts < 5) && ((CurrentTime - EnteredCurrentStatus) > 60*60)
+periodic_release =  (NumJobStarts < 2) && ((CurrentTime - EnteredCurrentStatus) > 60*10)
 
 # QUEUE is the "start button" - it launches any jobs that have been
 # specified thus far.
