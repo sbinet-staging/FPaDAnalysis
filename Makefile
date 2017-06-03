@@ -10,7 +10,7 @@ GEOM_HTML = $(GEOM_PATH)/$(GEOM_BASE).html
 GEOM_STRATEGIES = $(GEOM_PATH)/config/$(GEOM_BASE)_trackingStrategies.xml
 LCSIM_CONDITIONS_PREFIX := http%3A%2F%2Fwww.lcsim.org%2Fdetectors%2F
 LCSIM_CONDITIONS_PREFIX_ESCAPED := http\%3A\%2F\%2Fwww.lcsim.org\%2Fdetectors\%2F
-LCSIM_CONDITIONS := $(HOME)/.lcsim/cache/$(LCSIM_CONDITIONS_PREFIX)$(GEOM_BASE).zip
+LCSIM_CONDITIONS := $(PWD)/.lcsim/cache/$(LCSIM_CONDITIONS_PREFIX)$(GEOM_BASE).zip
 GEOM_OVERLAP_CHECK = $(GEOM_PATH)/overlapCheck.log
 GEOM = $(GEOM_LCDD) $(GEOM_GDML) $(GEOM_HEPREP) $(GEOM_PANDORA) $(GEOM_HTML) $(LCSIM_CONDITIONS) \
 	$(GEOM_OVERLAP_CHECK) $(GEOM_STRATEGIES)
@@ -57,7 +57,7 @@ $(GEOM_PANDORA): $(GEOM_PATH)/compact.xml $$(LCSIM_CONDITIONS)
 %.html: $(GEOM_PATH)/compact.xml $$(LCSIM_CONDITIONS)
 	java $(JAVA_OPTS) $(CONDITIONS_OPTS) -jar $(GCONVERTER) -o html $< $@
 
-$(HOME)/.lcsim/cache/$(LCSIM_CONDITIONS_PREFIX_ESCAPED)%.zip: $(GEOM_HEPREP)
+$(PWD)/.lcsim/cache/$(LCSIM_CONDITIONS_PREFIX_ESCAPED)%.zip: $(GEOM_HEPREP)
 	mkdir -p $(@D)
 	cd geom/$* && zip -r $@ * &> $@.log
 
