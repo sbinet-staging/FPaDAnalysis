@@ -5,3 +5,5 @@ bash --login -c "mkdir -p input/$1 output; \
 
 bash --login -c "make"
 
+bash --login -c "rm output/$1/*_tracking.slcio output/$1/*_pandora.slcio"
+

@@ -39,7 +39,7 @@ geom: $(GEOM)
 clean:
 	rm -rf output/*
 
-JAVA_OPTS = -Xms2048m -Xmx2048m
+JAVA_OPTS = -Xms1024m -Xmx1024m
 CONDITIONS_OPTS=-Dorg.lcsim.cacheDir=$(PWD) -Duser.home=$(PWD)
 
 $(GEOM_LCDD): $(GEOM_PATH)/compact.xml

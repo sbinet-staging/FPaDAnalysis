@@ -5,7 +5,7 @@ Universe = vanilla
 # OS version, core cound and memory, and wants to use the software modules. 
 Requirements = HAS_SINGULARITY == TRUE
 request_cpus = 1
-request_memory = 4 GB
+request_memory = 3 GB
 request_disk = 2 GB
 
 +SingularityImage = "/cvmfs/singularity.opensciencegrid.org/dbcooper/fpadsim:singularity"
@@ -13,7 +13,7 @@ request_disk = 2 GB
 
 # EXECUTABLE is the program your job will run It's often useful
 # to create a shell script to "wrap" your actual work.
-Executable = osg.sh
+Executable = job.sh
 Arguments = $(gendir) $(genfile)
 
 gendir = pgun_elec_eta4_pt30gev
@@ -35,7 +35,7 @@ Log = output/job.log
 # Send the job to Held state on failure. 
 on_exit_hold = (ExitBySignal == True) || (ExitCode != 0)
 
-# Periodically retry the jobs every 1 hour, up to a maximum of 5 retries.
+# Periodically retry the jobs every 10 minutes, up to a maximum of 2 retries.
 periodic_release =  (NumJobStarts < 2) && ((CurrentTime - EnteredCurrentStatus) > 60*10)
 
 # QUEUE is the "start button" - it launches any jobs that have been
