@@ -25,7 +25,7 @@ OUTPUT_PANDORA = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_pandora.slcio))
 OUTPUT_HEPSIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_hepsim.slcio))
 
 HEPSIM_BASE = $(patsubst input/%,%,$(basename $(shell find input -iname "*_hepsim.slcio")))
-OUTPUT_DIAG = $(addprefix output/,$(HEPSIM_BASE:=-diag.root))
+OUTPUT_DIAG = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_trackEff.pdf))
 
 OUTPUT = $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA) $(OUTPUT_HEPSIM) \
 	    $(OUTPUT_DIAG)
@@ -121,6 +121,6 @@ output/%-$(GEOM_BASE)_hepsim.slcio: output/%-$(GEOM_BASE)_pandora.slcio output/%
 
 #####
 
-output/%-diag.root: input/%_hepsim.slcio macros/diagnostics.cpp
-	root -b -q -l "macros/diagnostics.cpp(\"$<\",\"$@\")"
+output/%_trackEff.pdf: output/%_tracking.slcio tools/trackEff.go
+	go run tools/trackEff.go -o $@ $<
 
