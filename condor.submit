@@ -5,10 +5,10 @@ Universe = vanilla
 # OS version, core cound and memory, and wants to use the software modules. 
 Requirements = HAS_SINGULARITY == TRUE
 request_cpus = 1
-request_memory = 3 GB
+request_memory = 4 GB
 request_disk = 2 GB
 
-+SingularityImage = "/cvmfs/singularity.opensciencegrid.org/dbcooper/fpadsim:singularity"
++SingularityImage = "/cvmfs/singularity.opensciencegrid.org/argonneeic/fpadsim:flat"
 +SingularityBindCVMFS = False
 
 # EXECUTABLE is the program your job will run It's often useful
@@ -16,7 +16,7 @@ request_disk = 2 GB
 Executable = job.sh
 Arguments = $(gendir) $(genfile)
 
-gendir = pgun_elec_eta4_pt30gev
+gendir = gev35ep_lepto6ard_dislowq2
 
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
