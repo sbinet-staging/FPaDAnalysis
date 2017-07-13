@@ -18,14 +18,18 @@ GEOM = $(GEOM_LCDD) $(GEOM_GDML) $(GEOM_HEPREP) $(GEOM_PANDORA) $(GEOM_HTML) $(L
 N_EVENTS = $(shell cat nEventsPerRun)
 
 INPUT_BASE = $(patsubst input/%,%,$(basename $(shell find input -iname "*.promc")))
+INPUT_BASE_DIRS = $(sort $(dir $(INPUT_BASE)))
+
 OUTPUT_TRUTH = $(addprefix output/,$(INPUT_BASE:=_truth.slcio))
 OUTPUT_SIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE).slcio))
 OUTPUT_TRACKING = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_tracking.slcio))
 OUTPUT_PANDORA = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_pandora.slcio))
 OUTPUT_HEPSIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_hepsim.slcio))
 
-HEPSIM_BASE = $(patsubst input/%,%,$(basename $(shell find input -iname "*_hepsim.slcio")))
-OUTPUT_DIAG = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_trackEff.pdf))
+OUTPUT_TRACKEFF_MINANGLE = $(addprefix output/,$(INPUT_BASE_DIRS:=trackEff-MinAngle-$(GEOM_BASE).pdf))
+OUTPUT_TRACKEFF_UNNORM = $(addprefix output/,$(INPUT_BASE_DIRS:=trackEff-Unnorm-$(GEOM_BASE).pdf))
+OUTPUT_TRACKEFF_NORM = $(addprefix output/,$(INPUT_BASE_DIRS:=trackEff-Norm-$(GEOM_BASE).pdf))
+OUTPUT_DIAG = $(OUTPUT_TRACKEFF_MINANGLE) $(OUTPUT_TRACKEFF_UNNORM) $(OUTPUT_TRACKEFF_NORM)
 
 OUTPUT = $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA) $(OUTPUT_HEPSIM) \
 	    $(OUTPUT_DIAG)
@@ -121,6 +125,12 @@ output/%-$(GEOM_BASE)_hepsim.slcio: output/%-$(GEOM_BASE)_pandora.slcio output/%
 
 #####
 
-output/%_trackEff.pdf: output/%_tracking.slcio tools/trackEff.go
-	go run tools/trackEff.go -o $@ $<
+output/%/trackEff-MinAngle-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+	go run tools/trackEff.go -t 20 -a -o $@ $(filter $(@D)%.slcio,$^)
+
+output/%/trackEff-Unnorm-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+	go run tools/trackEff.go -t 20 -o $@ $(filter $(@D)%.slcio,$^)
+
+output/%/trackEff-Norm-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+	go run tools/trackEff.go -t 20 -n -o $@ $(filter $(@D)%.slcio,$^)
 
