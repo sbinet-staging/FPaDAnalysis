@@ -4,8 +4,11 @@ import (
 	"flag"
 	"fmt"
 	"image/color"
+	"io/ioutil"
+	"log"
 	"math"
 	"os"
+	"path"
 	"time"
 
 	"github.com/gonum/plot/vg"
@@ -15,11 +18,12 @@ import (
 )
 
 var (
+	doMinAnglePlot = flag.Bool("a", false, "generate plot of minimum angle between Tracks and MCParticles")
+	inputsAreDirs  = flag.Bool("d", false, "inputs are directories")
 	maxFiles       = flag.Int("m", math.MaxInt32, "maximum number of files to process")
 	normalize      = flag.Bool("n", false, "normalize Track count to MCParticle count")
 	nThreads       = flag.Int("t", 2, "number of concurrent files to process")
 	outputPath     = flag.String("o", "out.pdf", "path of output file")
-	doMinAnglePlot = flag.Bool("a", false, "generate plot of minimum angle between Tracks and MCParticles")
 )
 
 const (
@@ -42,21 +46,81 @@ options:
 
 	flag.Parse()
 
+	p, err := hplot.New()
+	if err != nil {
+		panic(err)
+	}
+
+	p.Title.Text = "Tracking/Truth Comparison for P_T > 0.5 GeV"
+	if *normalize {
+		p.Title.Text = "Tracking Efficiency for P_T > 0.5 GeV"
+	} else if *inputsAreDirs {
+		p.Title.Text = "Tracking Comparison for P_T > 0.5 GeV"
+	}
+	p.Title.Padding = 2 * vg.Millimeter
+	p.Legend.Left = true
+	p.Legend.Top = true
+	p.Legend.Padding = 2 * vg.Millimeter
+	p.X.Label.Text = "eta"
+	p.Y.Label.Text = "count"
+	if *doMinAnglePlot {
+		p.Legend.Left = false
+		p.X.Label.Text = "min. angular deviation"
+		p.Y.Label.Text = "count"
+	}
+
+	if *inputsAreDirs {
+		for i, dir := range flag.Args() {
+			files, err := ioutil.ReadDir(dir)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			var inputFiles []string
+			for _, file := range files {
+				inputFiles = append(inputFiles, dir+"/"+file.Name())
+			}
+
+			trackColor := color.RGBA{R: 255, B: 255, G: 255, A: 255}
+			var dashes []vg.Length
+			var dashOffs vg.Length
+			switch i {
+			case 0:
+				trackColor = color.RGBA{B: 255, A: 255}
+			case 1:
+				trackColor = color.RGBA{R: 255, A: 255}
+				dashes = append(dashes, 1*vg.Millimeter)
+			case 2:
+				trackColor = color.RGBA{G: 255, A: 255}
+				dashes = append(dashes, 1*vg.Millimeter)
+				dashOffs = 1 * vg.Millimeter
+			}
+
+			drawFileSet(inputFiles, p, false, trackColor, path.Base(dir), dashes, dashOffs)
+		}
+	} else {
+		histColor := color.RGBA{R: 255, A: 255}
+		if *normalize || *doMinAnglePlot {
+			histColor = color.RGBA{B: 255, A: 255}
+		}
+
+		drawFileSet(flag.Args(), p, true, histColor, "Track", nil, 0)
+	}
+
+	p.Save(6*vg.Inch, 4*vg.Inch, *outputPath)
+}
+
+func drawFileSet(inputFiles []string, p *hplot.Plot, drawTruth bool, trackColor color.Color, trackLabel string, trackDashes []vg.Length, trackDashOffs vg.Length) {
 	trueEtaHist := hbook.NewH1D(nEtaBins, minEta, maxEta)
 	trackEtaHist := hbook.NewH1D(nEtaBins, minEta, maxEta)
 	minAngleHist := hbook.NewH1D(nAngleBins, 0, maxAngle)
-
-	nInputFiles := flag.NArg()
-	if nInputFiles > *maxFiles {
-		fmt.Println("Stopping at", *maxFiles, "files")
-	}
 
 	trueEtaOut := make(chan float64)
 	trackEtaOut := make(chan float64)
 	minAngleOut := make(chan float64)
 	done := make(chan bool)
 
-	nFilesToAnalyze := nInputFiles
+	nFilesToAnalyze := len(inputFiles)
 	if *maxFiles < nFilesToAnalyze {
 		nFilesToAnalyze = *maxFiles
 	}
@@ -65,7 +129,7 @@ options:
 	nDone := 0
 
 	for nSubmitted < nFilesToAnalyze && nSubmitted < *nThreads {
-		go analyzeFile(flag.Arg(nSubmitted), trueEtaOut, trackEtaOut, minAngleOut, done)
+		go analyzeFile(inputFiles[nSubmitted], trueEtaOut, trackEtaOut, minAngleOut, done)
 		nSubmitted++
 
 		time.Sleep(time.Millisecond)
@@ -84,48 +148,48 @@ options:
 				nDone++
 
 				if nSubmitted < nFilesToAnalyze {
-					go analyzeFile(flag.Arg(nSubmitted), trueEtaOut, trackEtaOut, minAngleOut, done)
+					go analyzeFile(inputFiles[nSubmitted], trueEtaOut, trackEtaOut, minAngleOut, done)
 					nSubmitted++
 				}
 			}
 		}
 	}
 
-	p, err := hplot.New()
-	if err != nil {
-		panic(err)
-	}
 	if *doMinAnglePlot {
-		p.X.Label.Text = "minimum angle between Track and MCParticle"
-		p.Y.Label.Text = "count"
-
 		h, err := hplot.NewH1D(minAngleHist)
 		if err != nil {
 			panic(err)
 		}
-		h.LineStyle.Color = color.RGBA{B: 255, A: 255}
+		h.LineStyle.Color = trackColor
+		h.LineStyle.Dashes = trackDashes
+		h.LineStyle.DashOffs = trackDashOffs
 		p.Add(h)
-	} else {
-		// p.Title.Text = ""
-		p.X.Label.Text = "eta"
-		p.Y.Label.Text = "count"
-
-		hTrue, err := hplot.NewH1D(trueEtaHist)
-		if err != nil {
-			panic(err)
+		if *inputsAreDirs {
+			p.Legend.Add(trackLabel, h)
 		}
-		hTrue.LineStyle.Color = color.RGBA{B: 255, A: 255}
-		if !*normalize {
-			p.Add(hTrue)
+	} else {
+		if drawTruth {
+			hTrue, err := hplot.NewH1D(trueEtaHist)
+			if err != nil {
+				panic(err)
+			}
+			hTrue.LineStyle.Color = color.RGBA{B: 255, A: 255}
+			if !*normalize {
+				p.Add(hTrue)
+				p.Legend.Add("MCParticle", hTrue)
+			}
 		}
 
 		hTrack, err := hplot.NewH1D(trackEtaHist)
 		if err != nil {
 			panic(err)
 		}
-		hTrack.LineStyle.Color = color.RGBA{R: 255, A: 255}
+		hTrack.LineStyle.Color = trackColor
+		hTrack.LineStyle.Dashes = trackDashes
+		hTrack.LineStyle.DashOffs = trackDashOffs
 		if !*normalize {
 			p.Add(hTrack)
+			p.Legend.Add(trackLabel, hTrack)
 		}
 
 		normEtaHist := hbook.NewH1D(nEtaBins, minEta, maxEta)
@@ -142,18 +206,21 @@ options:
 			if err != nil {
 				panic(err)
 			}
-			hNorm.LineStyle.Color = color.RGBA{B: 255, A: 255}
+			hNorm.LineStyle.Color = trackColor
+			hNorm.LineStyle.Dashes = trackDashes
+			hNorm.LineStyle.DashOffs = trackDashOffs
 			p.Add(hNorm)
+			if *inputsAreDirs {
+				p.Legend.Add(trackLabel, hNorm)
+			}
 		}
 	}
-
-	p.Save(6*vg.Inch, -1, *outputPath)
 }
 
 func analyzeFile(inputPath string, trueEtaOut chan<- float64, trackEtaOut chan<- float64, minAngleOut chan<- float64, done chan<- bool) {
 	reader, err := lcio.Open(inputPath)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer reader.Close()
 

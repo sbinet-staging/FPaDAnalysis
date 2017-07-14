@@ -26,6 +26,7 @@ N_EVENTS = $(shell cat nEventsPerRun)
 # Create output target file paths for each input file
 INPUT_BASE = $(patsubst input/%,%,$(basename $(shell find input -iname "*.promc")))
 INPUT_BASE_DIRS = $(sort $(dir $(INPUT_BASE)))
+OUTPUT_DIRS = $(sort $(addprefix output/,$(INPUT_BASE_DIRS)) $(sort $(dir $(wildcard output/*/))))
 
 OUTPUT_TRUTH = $(addprefix output/,$(INPUT_BASE:=_truth.slcio))
 OUTPUT_SIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE).slcio))
@@ -33,10 +34,15 @@ OUTPUT_TRACKING = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_tracking.slcio
 OUTPUT_PANDORA = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_pandora.slcio))
 OUTPUT_HEPSIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_hepsim.slcio))
 
-OUTPUT_TRACKEFF_MINANGLE = $(addprefix output/,$(INPUT_BASE_DIRS:=trackEff-MinAngle-$(GEOM_BASE).pdf))
-OUTPUT_TRACKEFF_UNNORM = $(addprefix output/,$(INPUT_BASE_DIRS:=trackEff-Unnorm-$(GEOM_BASE).pdf))
-OUTPUT_TRACKEFF_NORM = $(addprefix output/,$(INPUT_BASE_DIRS:=trackEff-Norm-$(GEOM_BASE).pdf))
-OUTPUT_DIAG = $(OUTPUT_TRACKEFF_MINANGLE) $(OUTPUT_TRACKEFF_UNNORM) $(OUTPUT_TRACKEFF_NORM)
+OUTPUT_TRACKEFF = $(OUTPUT_DIRS:=trackEff-$(GEOM_BASE).pdf)
+OUTPUT_TRACKEFF_NORM = $(OUTPUT_DIRS:=trackEff-norm-$(GEOM_BASE).pdf)
+OUTPUT_TRACKEFF_DEVANG = $(OUTPUT_DIRS:=trackEff-devAng-$(GEOM_BASE).pdf)
+OUTPUT_CLUSTERDIST = $(OUTPUT_DIRS:=clusterDist-$(GEOM_BASE).pdf)
+OUTPUT_CLUSTERDIST_EWEIGHT = $(OUTPUT_DIRS:=clusterDist-energyWeighted-$(GEOM_BASE).pdf)
+OUTPUT_PFODIST = $(OUTPUT_DIRS:=pfoDist-$(GEOM_BASE).pdf)
+OUTPUT_DIAG = $(OUTPUT_TRACKEFF_DEVANG) $(OUTPUT_TRACKEFF) $(OUTPUT_TRACKEFF_NORM) \
+			  $(OUTPUT_CLUSTERDIST) $(OUTPUT_CLUSTERDIST_EWEIGHT) \
+			  $(OUTPUT_PFODIST)
 
 # Set what output files to build by default
 OUTPUT = $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA) $(OUTPUT_HEPSIM) \
@@ -148,12 +154,21 @@ output/%-$(GEOM_BASE)_hepsim.slcio: output/%-$(GEOM_BASE)_pandora.slcio output/%
 
 ##### Analysis target definitions
 
-output/%/trackEff-MinAngle-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
-	go run tools/trackEff.go -t 20 -a -o $@ $(filter $(@D)%.slcio,$^)
+output/%/trackEff-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+	go run tools/trackEff.go -t 40 -o $@ $(shell find $(@D) -name "*_tracking.slcio")
 
-output/%/trackEff-Unnorm-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
-	go run tools/trackEff.go -t 20 -o $@ $(filter $(@D)%.slcio,$^)
+output/%/trackEff-norm-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+	go run tools/trackEff.go -t 40 -n -o $@ $(shell find $(@D) -name "*_tracking.slcio")
 
-output/%/trackEff-Norm-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
-	go run tools/trackEff.go -t 20 -n -o $@ $(filter $(@D)%.slcio,$^)
+output/%/trackEff-devAng-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+	go run tools/trackEff.go -t 40 -a -o $@ $(shell find $(@D) -name "*_tracking.slcio")
+
+output/%/clusterDist-$(GEOM_BASE).pdf: tools/clusterDist.go $(OUTPUT_PANDORA)
+	go run tools/clusterDist.go -t 40 -o $@ $(shell find $(@D) -name "*_pandora.slcio")
+
+output/%/clusterDist-energyWeighted-$(GEOM_BASE).pdf: tools/clusterDist.go $(OUTPUT_PANDORA)
+	go run tools/clusterDist.go -t 40 -e -o $@ $(shell find $(@D) -name "*_pandora.slcio")
+
+output/%/pfoDist-$(GEOM_BASE).pdf: tools/PFODist.go $(OUTPUT_PANDORA)
+	go run tools/PFODist.go -t 40 -o $@ $(shell find $(@D) -name "*_pandora.slcio")
 
