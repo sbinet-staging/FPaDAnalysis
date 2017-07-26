@@ -47,12 +47,17 @@ OUTPUT_DIAG = $(OUTPUT_TRACKEFF_DEVANG) $(OUTPUT_TRACKEFF) $(OUTPUT_TRACKEFF_NOR
 # Set what output files to build by default
 OUTPUT = $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA) $(OUTPUT_HEPSIM) \
 	    $(OUTPUT_DIAG)
+ifeq ($(MAKECMDGOALS),osg)
+.INTERMEDIATE: $(OUTPUT_TRUTH) $(OUTPUT_SIM) $(OUTPUT_TRACKING) $(OUTPUT_PANDORA)
+endif
 
-.PHONY: all geom clean
+.PHONY: all geom osg clean allclean
 
 all: $(OUTPUT) $(GEOM)
 
 geom: $(GEOM)
+
+osg: $(OUTPUT_HEPSIM)
 
 clean:
 	rm -rf output/*
