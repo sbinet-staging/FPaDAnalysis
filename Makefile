@@ -53,7 +53,7 @@ endif
 
 .PHONY: all geom osg clean allclean
 
-all: $(OUTPUT) $(GEOM)
+all: $(OUTPUT) $(GEOM) $(STRATEGIES)
 
 geom: $(GEOM)
 
