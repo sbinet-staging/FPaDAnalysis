@@ -159,21 +159,21 @@ output/%-$(GEOM_BASE)_hepsim.slcio: output/%-$(GEOM_BASE)_pandora.slcio output/%
 
 ##### Analysis target definitions
 
-output/%/trackEff-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+%/trackEff-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
 	go run tools/trackEff.go -t 40 -o $@ $(shell find $(@D) -name "*_tracking.slcio")
 
-output/%/trackEff-norm-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+%/trackEff-norm-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
 	go run tools/trackEff.go -t 40 -n -o $@ $(shell find $(@D) -name "*_tracking.slcio")
 
-output/%/trackEff-devAng-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+%/trackEff-devAng-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
 	go run tools/trackEff.go -t 40 -a -o $@ $(shell find $(@D) -name "*_tracking.slcio")
 
-output/%/clusterDist-$(GEOM_BASE).pdf: tools/clusterDist.go $(OUTPUT_PANDORA)
+%/clusterDist-$(GEOM_BASE).pdf: tools/clusterDist.go $(OUTPUT_PANDORA)
 	go run tools/clusterDist.go -t 40 -o $@ $(shell find $(@D) -name "*_pandora.slcio")
 
-output/%/clusterDist-energyWeighted-$(GEOM_BASE).pdf: tools/clusterDist.go $(OUTPUT_PANDORA)
+%/clusterDist-energyWeighted-$(GEOM_BASE).pdf: tools/clusterDist.go $(OUTPUT_PANDORA)
 	go run tools/clusterDist.go -t 40 -e -o $@ $(shell find $(@D) -name "*_pandora.slcio")
 
-output/%/pfoDist-$(GEOM_BASE).pdf: tools/PFODist.go $(OUTPUT_PANDORA)
+%/pfoDist-$(GEOM_BASE).pdf: tools/PFODist.go $(OUTPUT_PANDORA)
 	go run tools/PFODist.go -t 40 -o $@ $(shell find $(@D) -name "*_pandora.slcio")
 
