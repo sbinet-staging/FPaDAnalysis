@@ -55,7 +55,7 @@ endif
 
 all: $(OUTPUT) $(GEOM) $(STRATEGIES)
 
-geom: $(GEOM)
+geom: $(GEOM) $(STRATEGIES)
 
 osg: $(OUTPUT_HEPSIM)
 
