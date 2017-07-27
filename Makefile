@@ -25,8 +25,7 @@ N_EVENTS = $(shell cat nEventsPerRun)
 
 # Create output target file paths for each input file
 INPUT_BASE = $(patsubst input/%,%,$(basename $(shell find input -iname "*.promc")))
-INPUT_BASE_DIRS = $(sort $(dir $(INPUT_BASE)))
-OUTPUT_DIRS = $(sort $(addprefix output/,$(INPUT_BASE_DIRS)) $(sort $(dir $(wildcard output/*/))))
+OUTPUT_DIRS = $(sort $(dir $(patsubst input/%,output/%,$(basename $(shell find input -iname "*.promc")))) $(sort $(dir $(wildcard output/*/))))
 
 OUTPUT_TRUTH = $(addprefix output/,$(INPUT_BASE:=_truth.slcio))
 OUTPUT_SIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE).slcio))
