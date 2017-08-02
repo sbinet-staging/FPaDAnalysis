@@ -18,20 +18,25 @@ import (
 )
 
 var (
-	doMinAnglePlot = flag.Bool("a", false, "generate plot of minimum angle between Tracks and MCParticles")
-	inputsAreDirs  = flag.Bool("d", false, "inputs are directories")
-	maxFiles       = flag.Int("m", math.MaxInt32, "maximum number of files to process")
-	normalize      = flag.Bool("n", false, "normalize Track count to MCParticle count")
-	nThreads       = flag.Int("t", 2, "number of concurrent files to process")
-	outputPath     = flag.String("o", "out.pdf", "path of output file")
+	doMinAnglePlot   = flag.Bool("a", false, "generate plot of minimum angle between Tracks and MCParticles")
+	inputsAreDirs    = flag.Bool("d", false, "inputs are directories")
+	maxFiles         = flag.Int("m", math.MaxInt32, "maximum number of files to process")
+	normalize        = flag.Bool("n", false, "normalize Track count to MCParticle count")
+	nThreads         = flag.Int("t", 2, "number of concurrent files to process")
+	outputPath       = flag.String("o", "out.pdf", "path of output file")
+	showTrackSummary = flag.Bool("s", false, "show stats summary for track distribution")
+	vsP_T            = flag.Bool("p", false, "plot efficiency vs. p_T")
 )
 
 const (
 	maxAngle   = 0.01
 	minEta     = -5
 	maxEta     = 5
+	minP_T     = 0.5
+	maxP_T     = 5
 	nEtaBins   = 50
 	nAngleBins = 50
+	nP_TBins   = 50
 	truthMinPT = 0.5
 )
 
@@ -51,22 +56,22 @@ options:
 		panic(err)
 	}
 
-	p.Title.Text = "Tracking/Truth Comparison for P_T > 0.5 GeV"
+	p.Title.Text = "Tracking/Truth Comparison"
 	if *normalize {
-		p.Title.Text = "Tracking Efficiency for P_T > 0.5 GeV"
+		p.Title.Text = "Tracking Efficiency"
 	} else if *inputsAreDirs {
-		p.Title.Text = "Tracking Comparison for P_T > 0.5 GeV"
+		p.Title.Text = "Tracking Comparison"
 	}
 	p.Title.Padding = 2 * vg.Millimeter
 	p.Legend.Left = true
 	p.Legend.Top = true
 	p.Legend.Padding = 2 * vg.Millimeter
 	p.X.Label.Text = "eta"
-	p.Y.Label.Text = "count"
 	if *doMinAnglePlot {
 		p.Legend.Left = false
 		p.X.Label.Text = "min. angular deviation"
-		p.Y.Label.Text = "count"
+	} else if *vsP_T {
+		p.X.Label.Text = "p_T {GeV}"
 	}
 
 	if *inputsAreDirs {
@@ -110,14 +115,26 @@ options:
 	p.Save(6*vg.Inch, 4*vg.Inch, *outputPath)
 }
 
+type TrueResult struct {
+	Eta float64
+	P_T float64
+}
+
+type TrackResult struct {
+	MinAngle float64
+	Eta      float64
+	P_T      float64
+}
+
 func drawFileSet(inputFiles []string, p *hplot.Plot, drawTruth bool, trackColor color.Color, trackLabel string, trackDashes []vg.Length, trackDashOffs vg.Length) {
 	trueEtaHist := hbook.NewH1D(nEtaBins, minEta, maxEta)
 	trackEtaHist := hbook.NewH1D(nEtaBins, minEta, maxEta)
 	minAngleHist := hbook.NewH1D(nAngleBins, 0, maxAngle)
+	trueP_THist := hbook.NewH1D(nP_TBins, minP_T, maxP_T)
+	trackP_THist := hbook.NewH1D(nP_TBins, minP_T, maxP_T)
 
-	trueEtaOut := make(chan float64)
-	trackEtaOut := make(chan float64)
-	minAngleOut := make(chan float64)
+	trueResults := make(chan TrueResult)
+	trackResults := make(chan TrackResult)
 	done := make(chan bool)
 
 	nFilesToAnalyze := len(inputFiles)
@@ -129,7 +146,7 @@ func drawFileSet(inputFiles []string, p *hplot.Plot, drawTruth bool, trackColor 
 	nDone := 0
 
 	for nSubmitted < nFilesToAnalyze && nSubmitted < *nThreads {
-		go analyzeFile(inputFiles[nSubmitted], trueEtaOut, trackEtaOut, minAngleOut, done)
+		go analyzeFile(inputFiles[nSubmitted], trueResults, trackResults, done)
 		nSubmitted++
 
 		time.Sleep(time.Millisecond)
@@ -137,20 +154,19 @@ func drawFileSet(inputFiles []string, p *hplot.Plot, drawTruth bool, trackColor 
 
 	for nDone < nSubmitted {
 		select {
-		case trueEta := <-trueEtaOut:
-			trueEtaHist.Fill(trueEta, 1)
-		case trackEta := <-trackEtaOut:
-			trackEtaHist.Fill(trackEta, 1)
-		case minAngle := <-minAngleOut:
-			minAngleHist.Fill(minAngle, 1)
-		case isDone := <-done:
-			if isDone {
-				nDone++
+		case trueResult := <-trueResults:
+			trueEtaHist.Fill(trueResult.Eta, 1)
+			trueP_THist.Fill(trueResult.P_T, 1)
+		case trackResult := <-trackResults:
+			trackEtaHist.Fill(trackResult.Eta, 1)
+			minAngleHist.Fill(trackResult.MinAngle, 1)
+			trackP_THist.Fill(trackResult.P_T, 1)
+		case <-done:
+			nDone++
 
-				if nSubmitted < nFilesToAnalyze {
-					go analyzeFile(inputFiles[nSubmitted], trueEtaOut, trackEtaOut, minAngleOut, done)
-					nSubmitted++
-				}
+			if nSubmitted < nFilesToAnalyze {
+				go analyzeFile(inputFiles[nSubmitted], trueResults, trackResults, done)
+				nSubmitted++
 			}
 		}
 	}
@@ -168,8 +184,14 @@ func drawFileSet(inputFiles []string, p *hplot.Plot, drawTruth bool, trackColor 
 			p.Legend.Add(trackLabel, h)
 		}
 	} else {
+		var hTrue *hplot.H1D
+		var err error
 		if drawTruth {
-			hTrue, err := hplot.NewH1D(trueEtaHist)
+			if !*vsP_T {
+				hTrue, err = hplot.NewH1D(trueEtaHist)
+			} else {
+				hTrue, err = hplot.NewH1D(trueP_THist)
+			}
 			if err != nil {
 				panic(err)
 			}
@@ -180,29 +202,37 @@ func drawFileSet(inputFiles []string, p *hplot.Plot, drawTruth bool, trackColor 
 			}
 		}
 
-		hTrack, err := hplot.NewH1D(trackEtaHist)
+		var hTrack *hplot.H1D
+		if !*vsP_T {
+			hTrack, err = hplot.NewH1D(trackEtaHist)
+		} else {
+			hTrack, err = hplot.NewH1D(trackP_THist)
+		}
 		if err != nil {
 			panic(err)
 		}
 		hTrack.LineStyle.Color = trackColor
 		hTrack.LineStyle.Dashes = trackDashes
 		hTrack.LineStyle.DashOffs = trackDashOffs
+		if *showTrackSummary {
+			hTrack.Infos.Style = hplot.HInfoSummary
+		}
 		if !*normalize {
 			p.Add(hTrack)
 			p.Legend.Add(trackLabel, hTrack)
 		}
 
-		normEtaHist := hbook.NewH1D(nEtaBins, minEta, maxEta)
+		normHist := hbook.NewH1D(hTrue.Hist.Len(), hTrue.Hist.XMin(), hTrue.Hist.XMax())
 		if *normalize {
-			for i := 0; i < nEtaBins; i++ {
-				trueX, trueY := trueEtaHist.XY(i)
-				_, trackY := trackEtaHist.XY(i)
+			for i := 0; i < normHist.Len(); i++ {
+				trueX, trueY := hTrue.Hist.XY(i)
+				_, trackY := hTrack.Hist.XY(i)
 				if trueY > 0 {
-					normEtaHist.Fill(trueX, trackY/trueY)
+					normHist.Fill(trueX, trackY/trueY)
 				}
 			}
 
-			hNorm, err := hplot.NewH1D(normEtaHist)
+			hNorm, err := hplot.NewH1D(normHist)
 			if err != nil {
 				panic(err)
 			}
@@ -217,7 +247,14 @@ func drawFileSet(inputFiles []string, p *hplot.Plot, drawTruth bool, trackColor 
 	}
 }
 
-func analyzeFile(inputPath string, trueEtaOut chan<- float64, trackEtaOut chan<- float64, minAngleOut chan<- float64, done chan<- bool) {
+type TruthRelation struct {
+	Truth *lcio.McParticle
+	PNorm [3]float64
+	Eta   float64
+	P_T   float64
+}
+
+func analyzeFile(inputPath string, trueResults chan<- TrueResult, trackResults chan<- TrackResult, done chan<- bool) {
 	reader, err := lcio.Open(inputPath)
 	if err != nil {
 		log.Fatal(err)
@@ -232,8 +269,8 @@ func analyzeFile(inputPath string, trueEtaOut chan<- float64, trackEtaOut chan<-
 
 		// FIXME: boost back from crossing angle?
 
-		var pNorms [][3]float64
-		for _, truth := range truthColl.Particles {
+		var truthRelations []TruthRelation
+		for i, truth := range truthColl.Particles {
 			if truth.GenStatus != 1 || truth.Charge == float32(0) {
 				continue
 			}
@@ -243,14 +280,23 @@ func analyzeFile(inputPath string, trueEtaOut chan<- float64, trackEtaOut chan<-
 			pT := math.Sqrt(truth.P[0]*truth.P[0] + truth.P[1]*truth.P[1])
 
 			if pT > truthMinPT {
-				trueEtaOut <- eta
-				pNorms = append(pNorms, pNorm)
+				truthRelations = append(truthRelations, TruthRelation{
+					Truth: &truthColl.Particles[i],
+					PNorm: pNorm,
+					Eta:   eta,
+					P_T:   pT,
+				})
+
+				trueResults <- TrueResult{
+					Eta: eta,
+					P_T: pT,
+				}
 			}
 		}
 
 		for _, track := range trackColl.Tracks {
 			tanLambda := track.TanL()
-			eta := -math.Log(math.Sqrt(1+tanLambda*tanLambda) - tanLambda)
+			//eta := -math.Log(math.Sqrt(1+tanLambda*tanLambda) - tanLambda)
 
 			lambda := math.Atan(tanLambda)
 			px := math.Cos(track.Phi()) * math.Cos(lambda)
@@ -261,8 +307,8 @@ func analyzeFile(inputPath string, trueEtaOut chan<- float64, trackEtaOut chan<-
 
 			minAngle := math.Inf(1)
 			minIndex := -1
-			for i, truePNorm := range pNorms {
-				angle := math.Acos(dotProduct(pNorm, truePNorm))
+			for i, truthRelation := range truthRelations {
+				angle := math.Acos(dotProduct(pNorm, truthRelation.PNorm))
 				if angle < minAngle {
 					minAngle = angle
 					minIndex = i
@@ -270,9 +316,13 @@ func analyzeFile(inputPath string, trueEtaOut chan<- float64, trackEtaOut chan<-
 			}
 
 			if minIndex >= 0 && minAngle < maxAngle {
-				trackEtaOut <- eta
-				minAngleOut <- minAngle
-				pNorms = append(pNorms[:minIndex], pNorms[minIndex+1:]...)
+				trackResults <- TrackResult{
+					MinAngle: minAngle,
+					Eta:      truthRelations[minIndex].Eta,
+					P_T:      truthRelations[minIndex].P_T,
+				}
+
+				truthRelations = append(truthRelations[:minIndex], truthRelations[minIndex+1:]...)
 			}
 		}
 	}
