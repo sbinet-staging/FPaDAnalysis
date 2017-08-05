@@ -13,13 +13,13 @@
       <Layer type="Seed" layer_number="1" detector_name="SiVertexBarrel" be_flag="BARREL" />
       <Layer type="Seed" layer_number="2" detector_name="SiVertexBarrel" be_flag="BARREL" />
       <Layer type="Seed" layer_number="3" detector_name="SiVertexBarrel" be_flag="BARREL" />
-      <Layer type="Confirm" layer_number="0" detector_name="SiTrackerBarrel" be_flag="BARREL" />
-      <Layer type="Extend" layer_number="4" detector_name="SiVertexBarrel" be_flag="BARREL" />
-      <Layer type="Extend" layer_number="0" detector_name="SiTrackerBarrel" be_flag="BARREL" />
+      <Layer type="Confirm" layer_number="1" detector_name="SiTrackerBarrel" be_flag="BARREL" />
+      <Layer type="Extend" layer_number="5" detector_name="SiVertexBarrel" be_flag="BARREL" />
       <Layer type="Extend" layer_number="1" detector_name="SiTrackerBarrel" be_flag="BARREL" />
       <Layer type="Extend" layer_number="2" detector_name="SiTrackerBarrel" be_flag="BARREL" />
       <Layer type="Extend" layer_number="3" detector_name="SiTrackerBarrel" be_flag="BARREL" />
       <Layer type="Extend" layer_number="4" detector_name="SiTrackerBarrel" be_flag="BARREL" />
+      <Layer type="Extend" layer_number="5" detector_name="SiTrackerBarrel" be_flag="BARREL" />
     </Layers>
   </Strategy>
 </StrategyList>
