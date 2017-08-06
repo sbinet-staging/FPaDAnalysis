@@ -36,10 +36,12 @@ OUTPUT_HEPSIM = $(addprefix output/,$(INPUT_BASE:=-$(GEOM_BASE)_hepsim.slcio))
 OUTPUT_TRACKEFF = $(OUTPUT_DIRS:=trackEff-$(GEOM_BASE).pdf)
 OUTPUT_TRACKEFF_NORM = $(OUTPUT_DIRS:=trackEff-norm-$(GEOM_BASE).pdf)
 OUTPUT_TRACKEFF_DEVANG = $(OUTPUT_DIRS:=trackEff-devAng-$(GEOM_BASE).pdf)
+OUTPUT_TRACKEFF_PT = $(OUTPUT_DIRS:=trackEff-pT-$(GEOM_BASE).pdf)
+OUTPUT_TRACKEFF_PT_NORM = $(OUTPUT_DIRS:=trackEff-pT-norm-$(GEOM_BASE).pdf)
 OUTPUT_CLUSTERDIST = $(OUTPUT_DIRS:=clusterDist-$(GEOM_BASE).pdf)
 OUTPUT_CLUSTERDIST_EWEIGHT = $(OUTPUT_DIRS:=clusterDist-energyWeighted-$(GEOM_BASE).pdf)
 OUTPUT_PFODIST = $(OUTPUT_DIRS:=pfoDist-$(GEOM_BASE).pdf)
-OUTPUT_DIAG = $(OUTPUT_TRACKEFF_DEVANG) $(OUTPUT_TRACKEFF) $(OUTPUT_TRACKEFF_NORM) \
+OUTPUT_DIAG = $(OUTPUT_TRACKEFF_DEVANG) $(OUTPUT_TRACKEFF) $(OUTPUT_TRACKEFF_NORM) $(OUTPUT_TRACKEFF_PT) $(OUTPUT_TRACKEFF_PT_NORM) \
 			  $(OUTPUT_CLUSTERDIST) $(OUTPUT_CLUSTERDIST_EWEIGHT) \
 			  $(OUTPUT_PFODIST)
 
@@ -166,6 +168,12 @@ output/%-$(GEOM_BASE)_hepsim.slcio: output/%-$(GEOM_BASE)_pandora.slcio output/%
 
 %/trackEff-devAng-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
 	go run tools/trackEff.go -t 40 -a -o $@ $(shell find $(@D) -name "*_tracking.slcio")
+
+%/trackEff-pT-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+	go run tools/trackEff.go -t 40 -p -o $@ $(shell find $(@D) -name "*_tracking.slcio")
+
+%/trackEff-pT-norm-$(GEOM_BASE).pdf: tools/trackEff.go $(OUTPUT_TRACKING)
+	go run tools/trackEff.go -t 40 -p -n -o $@ $(shell find $(@D) -name "*_tracking.slcio")
 
 %/clusterDist-$(GEOM_BASE).pdf: tools/clusterDist.go $(OUTPUT_PANDORA)
 	go run tools/clusterDist.go -t 40 -o $@ $(shell find $(@D) -name "*_pandora.slcio")
